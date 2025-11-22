@@ -405,28 +405,29 @@ InitGame PROC
     SHR AL, 1                       ; AL = center X
     ADD AL, BORDER_LEFT
     ADD AL, 1                       ; Adjust for border
+    AND AL, 0FEh                    ; Make it even (align to 2-column grid)
 
     MOV BL, GAME_HEIGHT
     SHR BL, 1                       ; BL = center Y
     ADD BL, BORDER_TOP
     ADD BL, 1                       ; Adjust for border
 
-    ; Set up initial snake segments (tail to head)
+    ; Set up initial snake segments (tail to head) - horizontal spacing = 2
     ; Segment 0 (tail)
     MOV SI, 0
     MOV [snakeX + SI], AL
-    SUB BYTE PTR [snakeX + SI], 2   ; Two cells to the left
+    SUB BYTE PTR [snakeX + SI], 4   ; Four columns to the left
     MOV [snakeY + SI], BL
 
     ; Segment 1 (middle)
     MOV SI, 1
     MOV [snakeX + SI], AL
-    DEC BYTE PTR [snakeX + SI]      ; One cell to the left
+    SUB BYTE PTR [snakeX + SI], 2   ; Two columns to the left
     MOV [snakeY + SI], BL
 
     ; Segment 2 (head)
     MOV SI, 2
-    MOV [snakeX + SI], AL           ; Center position
+    MOV [snakeX + SI], AL           ; Center position (even)
     MOV [snakeY + SI], BL
 
     ; Place initial food
@@ -462,6 +463,7 @@ SpawnFood PROC
     DIV BX                          ; DX = remainder (0 to GAME_WIDTH-3)
     ADD DL, BORDER_LEFT
     ADD DL, 2
+    AND DL, 0FEh                    ; Make it even (align to 2-column grid)
     MOV [foodX], DL
 
     ; Use timer for Y position
@@ -589,6 +591,7 @@ MoveUp:
 
 MoveRight:
     INC DL
+    INC DL              ; Move 2 columns for horizontal
     JMP CheckNewPosition
 
 MoveDown:
@@ -597,6 +600,7 @@ MoveDown:
 
 MoveLeft:
     DEC DL
+    DEC DL              ; Move 2 columns for horizontal
 
 CheckNewPosition:
     ; Check for wall collision
@@ -691,12 +695,16 @@ NoWrap:
 
 NoFood:
     ; Didn't eat food, remove tail (normal movement)
-    ; Erase old tail
+    ; Erase old tail (2 characters wide)
     MOV SI, [snakeTail]
     MOV DL, [snakeX + SI]
     MOV DH, [snakeY + SI]
     MOV AL, CHAR_SPACE
     MOV BL, COLOR_BLACK
+    CALL DrawChar
+
+    ; Erase second character
+    INC DL
     CALL DrawChar
 
     ; Move tail forward
@@ -733,10 +741,15 @@ DrawAllLoop:
     CMP CX, 0
     JE DrawAllDone
 
+    ; Draw snake segment (2 characters wide)
     MOV DL, [snakeX + SI]
     MOV DH, [snakeY + SI]
     MOV AL, CHAR_SNAKE
     MOV BL, COLOR_SNAKE
+    CALL DrawChar
+
+    ; Draw second character for width
+    INC DL
     CALL DrawChar
 
     INC SI
@@ -782,11 +795,16 @@ RenderGame PROC
     PUSH SI
 
     ; Only draw the new head (tail is erased in UpdateGame)
+    ; Draw as 2 characters wide
     MOV SI, [snakeHead]
     MOV DL, [snakeX + SI]
     MOV DH, [snakeY + SI]
     MOV AL, CHAR_SNAKE
     MOV BL, COLOR_SNAKE
+    CALL DrawChar
+
+    ; Draw second character for width
+    INC DL
     CALL DrawChar
 
     ; Redraw food (in case snake moved over it)

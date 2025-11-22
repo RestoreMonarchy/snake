@@ -39,6 +39,7 @@ DEVELOPMENT PHASES:
 CURRENT STATUS:
   - Game is 100% COMPLETE and fully polished!
   - Snake moves smoothly with arrow key controls
+  - CONSISTENT SPEED: Moves same speed horizontally and vertically!
   - Food eating and growth mechanics working perfectly
   - Timer-based delay using INT 1Ah (~165ms per frame)
   - Efficient rendering: only head drawn each frame, tail erased
@@ -56,8 +57,19 @@ COMPLETED FEATURES:
   ✓ Score tracking and display
   ✓ Restart functionality
   ✓ Clean game over screen
+  ✓ Speed consistency fix (horizontal = vertical movement speed)
 
 GAME IS READY TO PLAY!
+
+RECENT IMPROVEMENTS:
+  Speed Consistency Fix - The snake now moves at the same speed both
+  horizontally and vertically! Achieved by:
+    - Making snake 2 characters wide (using █ block character)
+    - Moving 2 columns horizontally to match 1 row vertically
+    - Aligning all positions to 2-column grid (even X coordinates)
+    - Aligning food spawning to same grid
+    - Erasing both characters when removing tail segments
+  This ensures smooth, consistent gameplay in all directions!
 
 TECHNICAL DETAILS:
   - Target: DOS 16-bit real mode
