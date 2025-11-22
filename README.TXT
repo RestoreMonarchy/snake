@@ -31,21 +31,22 @@ DEVELOPMENT PHASES:
   [X] Phase 4: Keyboard input
   [X] Phase 5: Main game loop
   [X] Phase 6: Snake movement
-  [~] Phase 7: Collision detection (wall works, self-collision buggy)
+  [X] Phase 7: Collision detection
   [X] Phase 8: Food & growth
   [ ] Phase 9: Polish & features
   [ ] Phase 10: Testing
 
 CURRENT STATUS:
-  - Game is fully playable!
+  - Game is fully playable and complete!
   - Snake moves smoothly with arrow key controls
-  - Food eating and growth mechanics working
+  - Food eating and growth mechanics working perfectly
   - Timer-based delay using INT 1Ah (~165ms per frame)
   - Efficient rendering: only head drawn each frame, tail erased
   - Prevention of 180-degree turns (can't reverse direction)
   - Wall collision detection working - game ends when hitting borders
-  - Self-collision detection implemented but not working yet (needs debug)
-  - Next: Fix self-collision bug, add score display
+  - Self-collision detection working - game ends when snake hits itself
+  - All core gameplay mechanics complete
+  - Next: Add polish (score display, restart option, visual improvements)
 
 TECHNICAL DETAILS:
   - Target: DOS 16-bit real mode

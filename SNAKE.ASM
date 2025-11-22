@@ -572,14 +572,21 @@ CheckNewPosition:
     JGE CollisionDetected
 
     ; Check for self-collision
+    ; Only check if snake is long enough (length > 4)
+    CMP WORD PTR [snakeLength], 4
+    JLE NoSelfCollision
+
     PUSH CX
     PUSH DI
-    XOR DI, DI              ; Start at segment 0
-    MOV CX, [snakeLength]   ; Check all segments
+
+    ; Start from tail, check all segments except the head
+    MOV DI, [snakeTail]
+    MOV CX, [snakeLength]
+    DEC CX                  ; Don't check the current head position
 
 CheckSelfLoop:
     CMP CX, 0
-    JE NoSelfCollision
+    JLE NoSelfCollision_Pop
 
     ; Compare new head position with this segment
     CMP DL, [snakeX + DI]
@@ -589,8 +596,17 @@ CheckSelfLoop:
 
 NotThisSegment:
     INC DI
+    CMP DI, MAX_SNAKE_LENGTH
+    JL NoWrapCheck
+    XOR DI, DI
+NoWrapCheck:
     DEC CX
     JMP CheckSelfLoop
+
+NoSelfCollision_Pop:
+    POP DI
+    POP CX
+    JMP NoSelfCollision
 
 HitSelf:
     POP DI
@@ -607,9 +623,6 @@ CollisionDetected:
     RET
 
 NoSelfCollision:
-    POP DI
-    POP CX
-
     ; No collision - continue with normal movement
     ; Increment head index (circular buffer)
     MOV SI, [snakeHead]
