@@ -44,6 +44,29 @@
     msgGameOver DB 'GAME OVER! Press any key...', 0
     msgPaused   DB 'PAUSED - Press P to continue', 0
 
+    ; Game state
+    MAX_SNAKE_LENGTH EQU 200    ; Maximum snake segments
+
+    ; Snake data - using two arrays for X and Y coordinates
+    snakeX      DB MAX_SNAKE_LENGTH DUP(0)  ; X coordinates
+    snakeY      DB MAX_SNAKE_LENGTH DUP(0)  ; Y coordinates
+    snakeLength DW 0                         ; Current snake length
+    snakeHead   DW 0                         ; Index of head in array
+    snakeTail   DW 0                         ; Index of tail in array
+
+    ; Direction: 0=up, 1=right, 2=down, 3=left
+    direction   DB 1                         ; Start moving right
+    nextDir     DB 1                         ; Next direction (for input buffering)
+
+    ; Food position
+    foodX       DB 0
+    foodY       DB 0
+
+    ; Game variables
+    score       DW 0                         ; Current score
+    gameOver    DB 0                         ; 0=playing, 1=game over
+    growFlag    DB 0                         ; 1=snake should grow this frame
+
 .CODE
 
 ; ============================================================================
@@ -315,13 +338,104 @@ DrawTitle ENDP
 ; ============================================================================
 InitGame PROC
     PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH SI
 
-    ; TODO: Initialize snake position, food, score, etc.
-    ; For now, just a placeholder
+    ; Reset game variables
+    MOV WORD PTR [score], 0
+    MOV BYTE PTR [gameOver], 0
+    MOV BYTE PTR [growFlag], 0
+    MOV BYTE PTR [direction], 1     ; Moving right
+    MOV BYTE PTR [nextDir], 1
 
+    ; Initialize snake in the middle of the game area
+    ; Start with 3 segments, moving right
+    MOV WORD PTR [snakeLength], 3
+    MOV WORD PTR [snakeHead], 2     ; Head at index 2
+    MOV WORD PTR [snakeTail], 0     ; Tail at index 0
+
+    ; Calculate starting position (center of game area)
+    MOV AL, GAME_WIDTH
+    SHR AL, 1                       ; AL = center X
+    ADD AL, BORDER_LEFT
+    ADD AL, 1                       ; Adjust for border
+
+    MOV BL, GAME_HEIGHT
+    SHR BL, 1                       ; BL = center Y
+    ADD BL, BORDER_TOP
+    ADD BL, 1                       ; Adjust for border
+
+    ; Set up initial snake segments (tail to head)
+    ; Segment 0 (tail)
+    MOV SI, 0
+    MOV [snakeX + SI], AL
+    SUB BYTE PTR [snakeX + SI], 2   ; Two cells to the left
+    MOV [snakeY + SI], BL
+
+    ; Segment 1 (middle)
+    MOV SI, 1
+    MOV [snakeX + SI], AL
+    DEC BYTE PTR [snakeX + SI]      ; One cell to the left
+    MOV [snakeY + SI], BL
+
+    ; Segment 2 (head)
+    MOV SI, 2
+    MOV [snakeX + SI], AL           ; Center position
+    MOV [snakeY + SI], BL
+
+    ; Place initial food
+    CALL SpawnFood
+
+    POP SI
+    POP CX
+    POP BX
     POP AX
     RET
 InitGame ENDP
+
+; ============================================================================
+; SpawnFood - Place food at a random empty location
+; ============================================================================
+SpawnFood PROC
+    PUSH AX
+    PUSH BX
+    PUSH DX
+
+    ; For now, use a simple pseudo-random position
+    ; In a real implementation, we'd check for collisions with snake
+
+    ; Get a pseudo-random number using BIOS timer
+    MOV AH, 00h
+    INT 1Ah                         ; Get system time, CX:DX = tick count
+
+    ; Use DL for X position
+    MOV AX, DX
+    XOR DX, DX
+    MOV BX, GAME_WIDTH
+    SUB BX, 2                       ; Leave some margin
+    DIV BX                          ; DX = remainder (0 to GAME_WIDTH-3)
+    ADD DL, BORDER_LEFT
+    ADD DL, 2
+    MOV [foodX], DL
+
+    ; Use timer for Y position
+    MOV AH, 00h
+    INT 1Ah
+    MOV AX, CX                      ; Use CX this time
+    XOR DX, DX
+    MOV BX, GAME_HEIGHT
+    SUB BX, 2
+    DIV BX
+    ADD DL, BORDER_TOP
+    ADD DL, 2
+    MOV [foodY], DL
+
+    POP DX
+    POP BX
+    POP AX
+    RET
+SpawnFood ENDP
 
 ; ============================================================================
 ; ProcessInput - Check for keyboard input (non-blocking)
@@ -369,24 +483,42 @@ UpdateGame ENDP
 RenderGame PROC
     PUSH AX
     PUSH BX
+    PUSH CX
     PUSH DX
+    PUSH SI
 
-    ; TODO: Draw snake, food, score
-    ; For now, draw a test snake segment in the middle
-    MOV DL, 40              ; Center X
-    MOV DH, 12              ; Center Y
-    MOV AL, CHAR_SNAKE      ; Snake character
-    MOV BL, COLOR_SNAKE     ; Green
+    ; Draw all snake segments
+    XOR SI, SI              ; Start at index 0
+    MOV CX, [snakeLength]   ; Number of segments to draw
+
+DrawSnakeLoop:
+    CMP CX, 0
+    JE DrawSnakeDone
+
+    ; Get X,Y for this segment
+    MOV DL, [snakeX + SI]
+    MOV DH, [snakeY + SI]
+    MOV AL, CHAR_SNAKE
+    MOV BL, COLOR_SNAKE
     CALL DrawChar
 
-    ; Draw test food
-    MOV DL, 50
-    MOV DH, 15
+    INC SI
+    DEC CX
+    JMP DrawSnakeLoop
+
+DrawSnakeDone:
+    ; Draw food
+    MOV DL, [foodX]
+    MOV DH, [foodY]
     MOV AL, CHAR_FOOD
-    MOV BL, COLOR_FOOD      ; Red
+    MOV BL, COLOR_FOOD
     CALL DrawChar
 
+    ; TODO: Draw score
+
+    POP SI
     POP DX
+    POP CX
     POP BX
     POP AX
     RET
