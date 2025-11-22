@@ -28,21 +28,22 @@ DEVELOPMENT PHASES:
   [X] Phase 1: Basic program structure
   [X] Phase 2: Video system (direct VGA memory)
   [X] Phase 3: Game state initialization
-  [ ] Phase 4: Keyboard input
-  [ ] Phase 5: Main game loop
-  [ ] Phase 6: Snake movement
+  [X] Phase 4: Keyboard input
+  [X] Phase 5: Main game loop
+  [X] Phase 6: Snake movement
   [ ] Phase 7: Collision detection
-  [ ] Phase 8: Food & growth
+  [X] Phase 8: Food & growth
   [ ] Phase 9: Polish & features
   [ ] Phase 10: Testing
 
 CURRENT STATUS:
-  - Video system working with direct VGA memory writes
-  - DrawChar function fixed (8-bit MUL to avoid register corruption)
-  - Game state initialized (snake arrays, food, score)
-  - Initial snake (3 segments) displays in center
-  - Random food placement working
-  - Next: Implement arrow key input and snake movement
+  - Game is now playable!
+  - Snake moves smoothly with arrow key controls
+  - Food eating and growth mechanics working
+  - Timer-based delay using INT 1Ah (~165ms per frame)
+  - Efficient rendering: only head drawn each frame, tail erased
+  - Prevention of 180-degree turns (can't reverse direction)
+  - Next: Add collision detection (walls and self-collision)
 
 TECHNICAL DETAILS:
   - Target: DOS 16-bit real mode

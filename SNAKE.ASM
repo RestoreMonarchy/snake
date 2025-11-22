@@ -97,6 +97,9 @@ START:
     CALL DrawBorder
     CALL DrawTitle
 
+    ; Draw initial snake and food
+    CALL DrawAllSnake
+
     ; Main game loop
 GameLoop:
     CALL ProcessInput       ; Check for keyboard input
@@ -442,6 +445,7 @@ SpawnFood ENDP
 ; ============================================================================
 ProcessInput PROC
     PUSH BX
+    PUSH CX
 
     MOV AH, 01h             ; BIOS keyboard - check for keystroke
     INT 16h
@@ -452,15 +456,58 @@ ProcessInput PROC
     INT 16h
 
     ; AL contains ASCII code, AH contains scan code
-    ; For now, just check ESC
+    ; Check ESC key
     CMP AL, 27              ; ESC key
     JE InputDone
 
-    ; TODO: Handle arrow keys (check AH for scan codes)
-    ; Up=48h, Left=4Bh, Right=4Dh, Down=50h
+    ; Handle arrow keys (extended keys have scan codes in AH)
+    ; Arrow keys: Up=48h, Left=4Bh, Right=4Dh, Down=50h
+    ; Direction: 0=up, 1=right, 2=down, 3=left
+
+    CMP AH, 48h             ; Up arrow
+    JE SetUp
+    CMP AH, 4Dh             ; Right arrow
+    JE SetRight
+    CMP AH, 50h             ; Down arrow
+    JE SetDown
+    CMP AH, 4Bh             ; Left arrow
+    JE SetLeft
+    JMP NoKey               ; Not an arrow key, ignore
+
+SetUp:
+    ; Can't go up if currently going down
+    MOV BL, [direction]
+    CMP BL, 2               ; Check if going down
+    JE NoKey
+    MOV BYTE PTR [nextDir], 0
+    JMP NoKey
+
+SetRight:
+    ; Can't go right if currently going left
+    MOV BL, [direction]
+    CMP BL, 3               ; Check if going left
+    JE NoKey
+    MOV BYTE PTR [nextDir], 1
+    JMP NoKey
+
+SetDown:
+    ; Can't go down if currently going up
+    MOV BL, [direction]
+    CMP BL, 0               ; Check if going up
+    JE NoKey
+    MOV BYTE PTR [nextDir], 2
+    JMP NoKey
+
+SetLeft:
+    ; Can't go left if currently going right
+    MOV BL, [direction]
+    CMP BL, 1               ; Check if going right
+    JE NoKey
+    MOV BYTE PTR [nextDir], 3
 
 NoKey:
 InputDone:
+    POP CX
     POP BX
     RET
 ProcessInput ENDP
@@ -470,32 +517,120 @@ ProcessInput ENDP
 ; ============================================================================
 UpdateGame PROC
     PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    PUSH SI
 
-    ; TODO: Move snake, check collisions, update score, etc.
+    ; Update direction from buffered input
+    MOV AL, [nextDir]
+    MOV [direction], AL
 
+    ; Calculate new head position based on direction
+    MOV SI, [snakeHead]
+    MOV DL, [snakeX + SI]       ; Current head X
+    MOV DH, [snakeY + SI]       ; Current head Y
+
+    ; Move based on direction: 0=up, 1=right, 2=down, 3=left
+    MOV AL, [direction]
+    CMP AL, 0
+    JE MoveUp
+    CMP AL, 1
+    JE MoveRight
+    CMP AL, 2
+    JE MoveDown
+    JMP MoveLeft
+
+MoveUp:
+    DEC DH
+    JMP CheckNewPosition
+
+MoveRight:
+    INC DL
+    JMP CheckNewPosition
+
+MoveDown:
+    INC DH
+    JMP CheckNewPosition
+
+MoveLeft:
+    DEC DL
+
+CheckNewPosition:
+    ; TODO: Check for wall collision and self-collision
+    ; For now, just add the new head
+
+    ; Increment head index (circular buffer)
+    MOV SI, [snakeHead]
+    INC SI
+    CMP SI, MAX_SNAKE_LENGTH
+    JL NoWrap
+    XOR SI, SI                  ; Wrap around to 0
+NoWrap:
+    MOV [snakeHead], SI
+
+    ; Store new head position
+    MOV [snakeX + SI], DL
+    MOV [snakeY + SI], DH
+
+    ; Check if we ate food
+    MOV AL, [foodX]
+    CMP DL, AL
+    JNE NoFood
+    MOV AL, [foodY]
+    CMP DH, AL
+    JNE NoFood
+
+    ; Ate food! Grow snake and spawn new food
+    INC WORD PTR [snakeLength]
+    INC WORD PTR [score]
+    CALL SpawnFood
+    JMP UpdateDone
+
+NoFood:
+    ; Didn't eat food, remove tail (normal movement)
+    ; Erase old tail
+    MOV SI, [snakeTail]
+    MOV DL, [snakeX + SI]
+    MOV DH, [snakeY + SI]
+    MOV AL, CHAR_SPACE
+    MOV BL, COLOR_BLACK
+    CALL DrawChar
+
+    ; Move tail forward
+    INC SI
+    CMP SI, MAX_SNAKE_LENGTH
+    JL NoTailWrap
+    XOR SI, SI
+NoTailWrap:
+    MOV [snakeTail], SI
+
+UpdateDone:
+    POP SI
+    POP DX
+    POP CX
+    POP BX
     POP AX
     RET
 UpdateGame ENDP
 
 ; ============================================================================
-; RenderGame - Draw the game screen
+; DrawAllSnake - Draw all snake segments (used initially)
 ; ============================================================================
-RenderGame PROC
+DrawAllSnake PROC
     PUSH AX
     PUSH BX
     PUSH CX
     PUSH DX
     PUSH SI
 
-    ; Draw all snake segments
     XOR SI, SI              ; Start at index 0
     MOV CX, [snakeLength]   ; Number of segments to draw
 
-DrawSnakeLoop:
+DrawAllLoop:
     CMP CX, 0
-    JE DrawSnakeDone
+    JE DrawAllDone
 
-    ; Get X,Y for this segment
     MOV DL, [snakeX + SI]
     MOV DH, [snakeY + SI]
     MOV AL, CHAR_SNAKE
@@ -504,21 +639,61 @@ DrawSnakeLoop:
 
     INC SI
     DEC CX
-    JMP DrawSnakeLoop
+    JMP DrawAllLoop
 
-DrawSnakeDone:
-    ; Draw food
+DrawAllDone:
+    POP SI
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+DrawAllSnake ENDP
+
+; ============================================================================
+; DrawFood - Draw the food
+; ============================================================================
+DrawFood PROC
+    PUSH AX
+    PUSH BX
+    PUSH DX
+
     MOV DL, [foodX]
     MOV DH, [foodY]
     MOV AL, CHAR_FOOD
     MOV BL, COLOR_FOOD
     CALL DrawChar
 
+    POP DX
+    POP BX
+    POP AX
+    RET
+DrawFood ENDP
+
+; ============================================================================
+; RenderGame - Draw the game screen
+; ============================================================================
+RenderGame PROC
+    PUSH AX
+    PUSH BX
+    PUSH DX
+    PUSH SI
+
+    ; Only draw the new head (tail is erased in UpdateGame)
+    MOV SI, [snakeHead]
+    MOV DL, [snakeX + SI]
+    MOV DH, [snakeY + SI]
+    MOV AL, CHAR_SNAKE
+    MOV BL, COLOR_SNAKE
+    CALL DrawChar
+
+    ; Redraw food (in case snake moved over it)
+    CALL DrawFood
+
     ; TODO: Draw score
 
     POP SI
     POP DX
-    POP CX
     POP BX
     POP AX
     RET
@@ -533,14 +708,18 @@ GameDelay PROC
     PUSH CX
     PUSH DX
 
-    ; Simple delay loop - adjust for desired speed
-    MOV CX, 0002h           ; High word of delay
-    MOV DX, 0000h           ; Low word of delay
-DelayLoop:
-    DEC DX
-    JNZ DelayLoop
-    DEC CX
-    JNZ DelayLoop
+    ; Use system timer (18.2 ticks per second)
+    ; Wait for 3 ticks = ~165ms
+    MOV AH, 00h
+    INT 1Ah                 ; Get current tick count in CX:DX
+    MOV BX, DX              ; Save starting tick count
+    ADD BX, 3               ; Wait for 3 ticks
+
+WaitLoop:
+    MOV AH, 00h
+    INT 1Ah                 ; Get current tick count
+    CMP DX, BX              ; Compare with target
+    JL WaitLoop             ; Keep waiting
 
     POP DX
     POP CX
