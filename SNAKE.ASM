@@ -108,6 +108,10 @@ GameLoop:
     CMP AL, 27              ; ESC key
     JE ExitGame
 
+    ; Check if game is over
+    CMP BYTE PTR [gameOver], 1
+    JE ExitGame
+
     CALL UpdateGame         ; Update game state
     CALL RenderGame         ; Draw everything
     CALL GameDelay          ; Delay for game speed
@@ -557,9 +561,56 @@ MoveLeft:
     DEC DL
 
 CheckNewPosition:
-    ; TODO: Check for wall collision and self-collision
-    ; For now, just add the new head
+    ; Check for wall collision
+    CMP DL, BORDER_LEFT
+    JLE CollisionDetected
+    CMP DL, BORDER_RIGHT
+    JGE CollisionDetected
+    CMP DH, BORDER_TOP
+    JLE CollisionDetected
+    CMP DH, BORDER_BOTTOM
+    JGE CollisionDetected
 
+    ; Check for self-collision
+    PUSH CX
+    PUSH DI
+    XOR DI, DI              ; Start at segment 0
+    MOV CX, [snakeLength]   ; Check all segments
+
+CheckSelfLoop:
+    CMP CX, 0
+    JE NoSelfCollision
+
+    ; Compare new head position with this segment
+    CMP DL, [snakeX + DI]
+    JNE NotThisSegment
+    CMP DH, [snakeY + DI]
+    JE HitSelf              ; Same position = collision!
+
+NotThisSegment:
+    INC DI
+    DEC CX
+    JMP CheckSelfLoop
+
+HitSelf:
+    POP DI
+    POP CX
+
+CollisionDetected:
+    ; Set game over flag and exit
+    MOV BYTE PTR [gameOver], 1
+    POP SI
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+
+NoSelfCollision:
+    POP DI
+    POP CX
+
+    ; No collision - continue with normal movement
     ; Increment head index (circular buffer)
     MOV SI, [snakeHead]
     INC SI
