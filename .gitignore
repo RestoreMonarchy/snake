@@ -1,0 +1,20 @@
+# DOSBox-X directory (emulator and tools)
+DOSBox-X/
+
+# Assembled/compiled files
+*.OBJ
+*.obj
+*.EXE
+*.exe
+*.MAP
+*.map
+
+# Backup files
+*.BAK
+*.bak
+*~
+
+# Test files
+DRAWTEST.ASM
+DRAWTEST.OBJ
+DRAWTEST.EXE
