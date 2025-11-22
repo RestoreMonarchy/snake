@@ -41,7 +41,9 @@
     ; Messages
     msgTitle    DB 'S N A K E   G A M E', 0
     msgScore    DB 'Score: ', 0
-    msgGameOver DB 'GAME OVER! Press any key...', 0
+    scoreStr    DB '00000', 0   ; String buffer for score display
+    msgGameOver DB 'GAME OVER! Score: ', 0
+    msgRestart  DB 'Press R to restart, ESC to quit', 0
     msgPaused   DB 'PAUSED - Press P to continue', 0
 
     ; Game state
@@ -119,25 +121,61 @@ GameLoop:
     JMP GameLoop
 
 ExitGame:
+    ; Clear screen
+    CALL ClearScreen
+
+    ; Display "GAME OVER! Score: "
+    MOV DL, 20
+    MOV DH, 10
+    MOV BL, COLOR_SCORE
+    LEA SI, msgGameOver
+    CALL DrawString
+
+    ; Display final score
+    MOV AX, [score]
+    LEA SI, scoreStr
+    CALL NumberToString
+    MOV DL, 39
+    MOV DH, 10
+    MOV BL, COLOR_SCORE
+    LEA SI, scoreStr
+    CALL DrawString
+
+    ; Display restart message
+    MOV DL, 15
+    MOV DH, 12
+    MOV BL, COLOR_BORDER
+    LEA SI, msgRestart
+    CALL DrawString
+
+RestartWait:
+    ; Wait for keypress
+    MOV AH, 00h
+    INT 16h
+
+    ; Check if R key (restart)
+    CMP AL, 'r'
+    JE RestartGame
+    CMP AL, 'R'
+    JE RestartGame
+
+    ; Check if ESC key (quit)
+    CMP AL, 27
+    JE QuitGame
+
+    ; Any other key, keep waiting
+    JMP RestartWait
+
+RestartGame:
+    ; Restart the game from the beginning
+    JMP START
+
+QuitGame:
     ; Show cursor again
     MOV AH, 01h             ; BIOS set cursor type
     MOV CH, 06h             ; Normal cursor
     MOV CL, 07h
     INT 10h
-
-    ; Clear screen
-    CALL ClearScreen
-
-    ; Display game over message centered
-    MOV DL, 26              ; Column (centered approximately)
-    MOV DH, 12              ; Row (middle of screen)
-    MOV BL, COLOR_SCORE     ; White text
-    LEA SI, msgGameOver
-    CALL DrawString
-
-    ; Wait for keypress before exit
-    MOV AH, 00h
-    INT 16h
 
     ; Return to DOS
     MOV AH, 4Ch             ; DOS function - terminate
@@ -754,7 +792,8 @@ RenderGame PROC
     ; Redraw food (in case snake moved over it)
     CALL DrawFood
 
-    ; TODO: Draw score
+    ; Draw score
+    CALL DrawScore
 
     POP SI
     POP DX
@@ -762,6 +801,78 @@ RenderGame PROC
     POP AX
     RET
 RenderGame ENDP
+
+; ============================================================================
+; DrawScore - Display the current score
+; ============================================================================
+DrawScore PROC
+    PUSH AX
+    PUSH BX
+    PUSH DX
+    PUSH SI
+
+    ; Draw "Score: " label
+    MOV DL, 2
+    MOV DH, 0
+    MOV BL, COLOR_SCORE
+    LEA SI, msgScore
+    CALL DrawString
+
+    ; Convert score to string
+    MOV AX, [score]
+    LEA SI, scoreStr
+    CALL NumberToString
+
+    ; Draw score number
+    MOV DL, 9
+    MOV DH, 0
+    MOV BL, COLOR_SCORE
+    LEA SI, scoreStr
+    CALL DrawString
+
+    POP SI
+    POP DX
+    POP BX
+    POP AX
+    RET
+DrawScore ENDP
+
+; ============================================================================
+; NumberToString - Convert number in AX to decimal string
+; Input: AX = number, SI = buffer address (must be 6 bytes)
+; Output: SI points to null-terminated string
+; ============================================================================
+NumberToString PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    PUSH DI
+
+    MOV DI, SI
+    ADD DI, 4               ; Start at end of buffer (5 digits)
+    MOV BYTE PTR [DI+1], 0  ; Null terminator
+
+    MOV BX, 10              ; Divisor
+    MOV CX, 5               ; Number of digits
+
+ConvertLoop:
+    XOR DX, DX              ; Clear DX for division
+    DIV BX                  ; AX / 10, quotient in AX, remainder in DX
+    ADD DL, '0'             ; Convert to ASCII
+    MOV [DI], DL            ; Store digit
+    DEC DI
+    DEC CX
+    CMP CX, 0
+    JNE ConvertLoop
+
+    POP DI
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+NumberToString ENDP
 
 ; ============================================================================
 ; GameDelay - Delay to control game speed
