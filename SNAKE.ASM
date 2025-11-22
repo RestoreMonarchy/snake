@@ -125,7 +125,7 @@ ExitGame:
     CALL ClearScreen
 
     ; Display "GAME OVER! Score: "
-    MOV DL, 20
+    MOV DL, 28              ; Center: (80 - 24) / 2 = 28
     MOV DH, 10
     MOV BL, COLOR_SCORE
     LEA SI, msgGameOver
@@ -135,14 +135,14 @@ ExitGame:
     MOV AX, [score]
     LEA SI, scoreStr
     CALL NumberToString
-    MOV DL, 39
+    MOV DL, 47              ; Position after "GAME OVER! Score: " (28 + 19)
     MOV DH, 10
     MOV BL, COLOR_SCORE
     LEA SI, scoreStr
     CALL DrawString
 
     ; Display restart message
-    MOV DL, 15
+    MOV DL, 24              ; Center: (80 - 32) / 2 = 24
     MOV DH, 12
     MOV BL, COLOR_BORDER
     LEA SI, msgRestart
