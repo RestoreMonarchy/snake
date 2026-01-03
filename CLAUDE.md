@@ -13,22 +13,26 @@ This is a classic Snake game written in x86 16-bit assembly language for DOS, as
 - TASM and TLINK are available in DOSBox-X at `Z:\BOR\`
 
 ### Build Process
-The source code must be copied to `DOSBox-X/drived/` before building, as this is the directory mounted in DOSBox-X.
+The source code must be copied to `DOSBox-X/drived/` before building, as this is the directory mounted as `D:\` in DOSBox-X.
 
 1. **Copy files to test directory**:
    ```bash
    cp SNAKE.ASM DOSBox-X/drived/
+   cp BUILD.BAT DOSBox-X/drived/
    ```
 
-2. **Build in DOSBox-X**:
-   - Run `BUILD.BAT` which executes:
-     - `Z:\BOR\TASM.EXE SNAKE.ASM` - Assembles to SNAKE.OBJ
-     - `Z:\BOR\TLINK.EXE SNAKE.OBJ` - Links to SNAKE.EXE
+2. **Build in DOSBox-X** (from D: drive):
+   ```
+   BUILD.BAT
+   ```
+   This runs TASM to assemble `SNAKE.ASM` → `SNAKE.OBJ`, then TLINK to link → `SNAKE.EXE`
 
 3. **Run the game**:
    ```
    SNAKE.EXE
    ```
+
+4. **Debug** (optional): Turbo Debugger is available at `Z:\BOR\TD.EXE`
 
 **IMPORTANT**: Always copy SNAKE.ASM to `DOSBox-X/drived/` after making changes so they can be tested in DOSBox-X.
 
@@ -79,6 +83,21 @@ When centering text on the 80-column screen, calculate position as:
 column = (80 - total_text_length) / 2
 ```
 Example: "GAME OVER! Score: 00000" = 24 chars → column 28
+
+## Key Procedures
+
+| Procedure | Purpose |
+|-----------|---------|
+| `InitGame` | Resets game state, positions snake at center, spawns initial food |
+| `UpdateGame` | Main logic: moves snake, checks collisions, handles food eating |
+| `RenderGame` | Draws new head position and redraws food/score |
+| `DrawAllSnake` | Initial full snake draw (used at game start) |
+| `ProcessInput` | Non-blocking keyboard check, buffers direction changes |
+| `SpawnFood` | Places food at pseudo-random grid-aligned position |
+| `DrawChar` | Low-level: writes character+attribute to video memory |
+| `DrawString` | Draws null-terminated string at position |
+| `NumberToString` | Converts AX to 5-digit decimal string |
+| `GameDelay` | Waits 3 timer ticks (~165ms) for game speed |
 
 ## Game Constants
 
