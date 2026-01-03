@@ -66,8 +66,13 @@
 
     ; Game variables
     score       DW 0                         ; Current score
+    highScore   DW 0                         ; High score (persists between restarts)
     gameOver    DB 0                         ; 0=playing, 1=game over
     growFlag    DB 0                         ; 1=snake should grow this frame
+
+    ; High score display
+    msgHiScore  DB 'Best: ', 0               ; Display label
+    hiScoreStr  DB '00000', 0                ; String buffer for high score
 
 .CODE
 
@@ -690,6 +695,14 @@ NoWrap:
     ; Ate food! Grow snake and spawn new food
     INC WORD PTR [snakeLength]
     INC WORD PTR [score]
+
+    ; Update high score if current score is higher
+    MOV AX, [score]
+    CMP AX, [highScore]
+    JLE SkipHighScore
+    MOV [highScore], AX
+SkipHighScore:
+
     CALL SpawnFood
     JMP UpdateDone
 
@@ -821,7 +834,7 @@ RenderGame PROC
 RenderGame ENDP
 
 ; ============================================================================
-; DrawScore - Display the current score
+; DrawScore - Display the current score and high score
 ; ============================================================================
 DrawScore PROC
     PUSH AX
@@ -846,6 +859,25 @@ DrawScore PROC
     MOV DH, 0
     MOV BL, COLOR_SCORE
     LEA SI, scoreStr
+    CALL DrawString
+
+    ; Draw "Best: " label on the right side
+    MOV DL, 67
+    MOV DH, 0
+    MOV BL, COLOR_SCORE
+    LEA SI, msgHiScore
+    CALL DrawString
+
+    ; Convert high score to string
+    MOV AX, [highScore]
+    LEA SI, hiScoreStr
+    CALL NumberToString
+
+    ; Draw high score number
+    MOV DL, 73
+    MOV DH, 0
+    MOV BL, COLOR_SCORE
+    LEA SI, hiScoreStr
     CALL DrawString
 
     POP SI
