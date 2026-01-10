@@ -74,6 +74,10 @@
     msgHiScore  DB 'Best: ', 0               ; Display label
     hiScoreStr  DB '00000', 0                ; String buffer for high score
 
+    ; High score file
+    hsFilename  DB 'SNAKE.HI', 0             ; High score filename (ASCIZ)
+    hsHandle    DW 0                         ; File handle
+
 .CODE
 
 ; ============================================================================
@@ -82,6 +86,9 @@
 START:
     MOV AX, @DATA           ; Initialize data segment
     MOV DS, AX
+
+    ; Load high score from file (before anything else)
+    CALL LoadHighScore
 
     ; Set video mode to 80x25 text mode (mode 3)
     MOV AH, 00h             ; BIOS video - set mode
@@ -701,6 +708,7 @@ NoWrap:
     CMP AX, [highScore]
     JLE SkipHighScore
     MOV [highScore], AX
+    CALL SaveHighScore      ; Save new high score to file
 SkipHighScore:
 
     CALL SpawnFood
@@ -952,5 +960,95 @@ WaitLoop:
     POP AX
     RET
 GameDelay ENDP
+
+; ============================================================================
+; LoadHighScore - Load high score from file (if exists)
+; ============================================================================
+LoadHighScore PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+
+    ; Try to open existing file
+    MOV AH, 3Dh             ; DOS function: open file
+    MOV AL, 0               ; Read-only mode
+    LEA DX, hsFilename      ; DS:DX -> filename
+    INT 21h
+    JC LoadFailed           ; CF set = file doesn't exist
+
+    ; File opened successfully, AX = handle
+    MOV [hsHandle], AX
+    MOV BX, AX              ; BX = file handle
+
+    ; Read 2 bytes (high score)
+    MOV AH, 3Fh             ; DOS function: read file
+    MOV CX, 2               ; Read 2 bytes
+    LEA DX, highScore       ; DS:DX -> buffer
+    INT 21h
+    JC LoadCloseFile        ; Error reading, close and exit
+
+    ; Check if we actually read 2 bytes
+    CMP AX, 2
+    JNE LoadCloseFile       ; Didn't read enough, use 0
+
+LoadCloseFile:
+    ; Close the file
+    MOV AH, 3Eh             ; DOS function: close file
+    MOV BX, [hsHandle]
+    INT 21h
+
+    JMP LoadDone
+
+LoadFailed:
+    ; File doesn't exist, start with 0
+    MOV WORD PTR [highScore], 0
+
+LoadDone:
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+LoadHighScore ENDP
+
+; ============================================================================
+; SaveHighScore - Save high score to file
+; ============================================================================
+SaveHighScore PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+
+    ; Create file (overwrites if exists)
+    MOV AH, 3Ch             ; DOS function: create file
+    MOV CX, 0               ; Normal file attributes
+    LEA DX, hsFilename      ; DS:DX -> filename
+    INT 21h
+    JC SaveDone             ; CF set = error, skip saving
+
+    ; File created successfully, AX = handle
+    MOV [hsHandle], AX
+    MOV BX, AX              ; BX = file handle
+
+    ; Write 2 bytes (high score)
+    MOV AH, 40h             ; DOS function: write file
+    MOV CX, 2               ; Write 2 bytes
+    LEA DX, highScore       ; DS:DX -> data
+    INT 21h
+
+    ; Close the file
+    MOV AH, 3Eh             ; DOS function: close file
+    MOV BX, [hsHandle]
+    INT 21h
+
+SaveDone:
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+SaveHighScore ENDP
 
 END START
