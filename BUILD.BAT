@@ -4,8 +4,7 @@ REM Build script for Snake Game
 REM ============================================================================
 
 ECHO Assembling SNAKE.ASM...
-Z:\BOR\TASM.EXE SNAKE.ASM
-
+Z:\BOR\TASM.EXE SNAKE.ASM /la
 IF ERRORLEVEL 1 GOTO ERROR
 
 ECHO Linking SNAKE.OBJ...
@@ -19,6 +18,7 @@ GOTO END
 
 :ERROR
 ECHO.
-ECHO Build failed! Check errors above.
+ECHO Build failed! Check SNAKE.LST for errors.
+PAUSE
 
 :END

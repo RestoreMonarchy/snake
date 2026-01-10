@@ -46,6 +46,12 @@
     msgRestart  DB 'Press R to restart, ESC to quit', 0
     msgPaused   DB 'PAUSED - Press P to continue', 0
 
+    ; Start menu messages
+    msgStart    DB 'Press ENTER to start', 0
+    msgControls DB 'Use arrow keys to move', 0
+    msgEsc      DB 'Press ESC to quit', 0
+    msgPauseHelp DB 'Press P to pause', 0
+
     ; Game state
     MAX_SNAKE_LENGTH EQU 200    ; Maximum snake segments
 
@@ -103,6 +109,29 @@ START:
     INT 10h
 
     ; Clear screen
+    CALL ClearScreen
+
+    ; Show start menu and wait for ENTER
+    CALL DrawStartMenu
+
+StartMenuLoop:
+    ; Wait for keypress
+    MOV AH, 00h
+    INT 16h
+
+    ; Check for ENTER key
+    CMP AL, 13              ; ENTER key
+    JNE CheckEscKey
+    JMP BeginGame
+
+CheckEscKey:
+    ; Check for ESC key
+    CMP AL, 27              ; ESC key
+    JNE StartMenuLoop
+    JMP QuitGame
+
+BeginGame:
+    ; Clear screen for game
     CALL ClearScreen
 
     ; Initialize game
@@ -401,6 +430,57 @@ DrawTitle PROC
     POP AX
     RET
 DrawTitle ENDP
+
+; ============================================================================
+; DrawStartMenu - Draw the start menu screen
+; ============================================================================
+DrawStartMenu PROC
+    PUSH AX
+    PUSH BX
+    PUSH DX
+    PUSH SI
+
+    ; Draw game title centered (80 - 19) / 2 = 30
+    MOV DL, 30
+    MOV DH, 8
+    MOV BL, COLOR_BORDER    ; Yellow
+    LEA SI, msgTitle
+    CALL DrawString
+
+    ; Draw "Press ENTER to start" (80 - 20) / 2 = 30
+    MOV DL, 30
+    MOV DH, 12
+    MOV BL, COLOR_SCORE     ; White
+    LEA SI, msgStart
+    CALL DrawString
+
+    ; Draw controls help (80 - 22) / 2 = 29
+    MOV DL, 29
+    MOV DH, 15
+    MOV BL, COLOR_SNAKE     ; Green
+    LEA SI, msgControls
+    CALL DrawString
+
+    ; Draw pause help (80 - 16) / 2 = 32
+    MOV DL, 32
+    MOV DH, 16
+    MOV BL, COLOR_SNAKE     ; Green
+    LEA SI, msgPauseHelp
+    CALL DrawString
+
+    ; Draw ESC help (80 - 17) / 2 = 31
+    MOV DL, 31
+    MOV DH, 17
+    MOV BL, COLOR_SNAKE     ; Green
+    LEA SI, msgEsc
+    CALL DrawString
+
+    POP SI
+    POP DX
+    POP BX
+    POP AX
+    RET
+DrawStartMenu ENDP
 
 ; ============================================================================
 ; InitGame - Initialize game state
