@@ -69,6 +69,7 @@
     highScore   DW 0                         ; High score (persists between restarts)
     gameOver    DB 0                         ; 0=playing, 1=game over
     growFlag    DB 0                         ; 1=snake should grow this frame
+    paused      DB 0                         ; 0=running, 1=paused
 
     ; High score display
     msgHiScore  DB 'Best: ', 0               ; Display label
@@ -126,10 +127,21 @@ GameLoop:
     CMP BYTE PTR [gameOver], 1
     JE ExitGame
 
+    ; Check if paused
+    CMP BYTE PTR [paused], 1
+    JE PausedLoop
+
+    CALL ClearPauseMessage  ; Clear pause message if it was shown
     CALL UpdateGame         ; Update game state
     CALL RenderGame         ; Draw everything
     CALL GameDelay          ; Delay for game speed
 
+    JMP GameLoop
+
+PausedLoop:
+    ; Show paused message and wait for unpause
+    CALL DrawPauseMessage
+    CALL GameDelay
     JMP GameLoop
 
 ExitGame:
@@ -405,6 +417,7 @@ InitGame PROC
     MOV BYTE PTR [growFlag], 0
     MOV BYTE PTR [direction], 1     ; Moving right
     MOV BYTE PTR [nextDir], 1
+    MOV BYTE PTR [paused], 0        ; Not paused
 
     ; Initialize snake in the middle of the game area
     ; Start with 3 segments, moving right
@@ -516,6 +529,12 @@ ProcessInput PROC
     CMP AL, 27              ; ESC key
     JE InputDone
 
+    ; Check P key for pause toggle
+    CMP AL, 'p'
+    JE TogglePause
+    CMP AL, 'P'
+    JE TogglePause
+
     ; Handle arrow keys (extended keys have scan codes in AH)
     ; Arrow keys: Up=48h, Left=4Bh, Right=4Dh, Down=50h
     ; Direction: 0=up, 1=right, 2=down, 3=left
@@ -560,6 +579,11 @@ SetLeft:
     CMP BL, 1               ; Check if going right
     JE NoKey
     MOV BYTE PTR [nextDir], 3
+    JMP NoKey
+
+TogglePause:
+    ; Toggle paused state
+    XOR BYTE PTR [paused], 1
 
 NoKey:
 InputDone:
@@ -894,6 +918,56 @@ DrawScore PROC
     POP AX
     RET
 DrawScore ENDP
+
+; ============================================================================
+; DrawPauseMessage - Display "PAUSED" message in center of screen
+; ============================================================================
+DrawPauseMessage PROC
+    PUSH AX
+    PUSH BX
+    PUSH DX
+    PUSH SI
+
+    ; Draw paused message centered (80 - 28) / 2 = 26
+    MOV DL, 26
+    MOV DH, 12              ; Middle row
+    MOV BL, COLOR_SCORE
+    LEA SI, msgPaused
+    CALL DrawString
+
+    POP SI
+    POP DX
+    POP BX
+    POP AX
+    RET
+DrawPauseMessage ENDP
+
+; ============================================================================
+; ClearPauseMessage - Clear the pause message from screen
+; ============================================================================
+ClearPauseMessage PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+
+    ; Clear the paused message area (28 characters)
+    MOV DL, 26
+    MOV DH, 12
+    MOV CX, 28
+    MOV AL, ' '
+    MOV BL, COLOR_BLACK
+ClearPauseLoop:
+    CALL DrawChar
+    INC DL
+    LOOP ClearPauseLoop
+
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+ClearPauseMessage ENDP
 
 ; ============================================================================
 ; NumberToString - Convert number in AX to decimal string
