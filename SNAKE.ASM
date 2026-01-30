@@ -76,6 +76,7 @@
     gameOver    DB 0                         ; 0=playing, 1=game over
     growFlag    DB 0                         ; 1=snake should grow this frame
     paused      DB 0                         ; 0=running, 1=paused
+    randSeed    DW 0                         ; Random number generator seed
 
     ; High score display
     msgHiScore  DB 'Best: ', 0               ; Display label
@@ -499,6 +500,12 @@ InitGame PROC
     MOV BYTE PTR [nextDir], 1
     MOV BYTE PTR [paused], 0        ; Not paused
 
+    ; Seed random number generator from BIOS timer
+    MOV AH, 00h
+    INT 1Ah                         ; Get system time, CX:DX = tick count
+    ADD DX, CX                      ; Combine CX and DX for more entropy
+    MOV [randSeed], DX
+
     ; Initialize snake in the middle of the game area
     ; Start with 3 segments, moving right
     MOV WORD PTR [snakeLength], 3
@@ -557,12 +564,15 @@ SpawnFood PROC
     PUSH DI
 
 TrySpawnAgain:
-    ; Get a pseudo-random number using BIOS timer
-    MOV AH, 00h
-    INT 1Ah                         ; Get system time, CX:DX = tick count
+    ; Generate random X position using LCG
+    ; Formula: seed = (seed * 25173 + 13849) mod 65536
+    MOV AX, [randSeed]
+    MOV BX, 25173
+    MUL BX                          ; DX:AX = seed * 25173
+    ADD AX, 13849                   ; AX = (seed * 25173 + 13849) mod 65536
+    MOV [randSeed], AX              ; Save new seed
 
-    ; Use DL for X position
-    MOV AX, DX
+    ; Use AX for X position
     XOR DX, DX
     MOV BX, GAME_WIDTH
     SUB BX, 2                       ; Leave some margin
@@ -572,10 +582,13 @@ TrySpawnAgain:
     AND DL, 0FEh                    ; Make it even (align to 2-column grid)
     MOV [foodX], DL
 
-    ; Use timer for Y position
-    MOV AH, 00h
-    INT 1Ah
-    MOV AX, CX                      ; Use CX this time
+    ; Generate random Y position using LCG
+    MOV AX, [randSeed]
+    MOV BX, 25173
+    MUL BX
+    ADD AX, 13849
+    MOV [randSeed], AX
+
     XOR DX, DX
     MOV BX, GAME_HEIGHT
     SUB BX, 2
