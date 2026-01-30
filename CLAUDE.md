@@ -8,33 +8,39 @@ This is a classic Snake game written in x86 16-bit assembly language for DOS, as
 
 ## Building and Testing
 
+### Quick Start (Recommended)
+Simply run:
+```powershell
+.\run.ps1
+```
+
+This script:
+1. Copies `SNAKE.ASM` and `BUILD.BAT` to `DOSBox-X/drived/`
+2. Launches DOSBox-X
+3. DOSBox-X autostart (`dosbox-x.conf` `[autoexec]` section) automatically:
+   - Mounts `drived/` as `D:`
+   - Runs `BUILD.BAT` (TASM + TLINK)
+   - Launches `SNAKE.EXE` if build succeeds
+
 ### Prerequisites
 - DOSBox-X emulator (included in `DOSBox-X/` directory)
 - TASM and TLINK are available in DOSBox-X at `Z:\BOR\`
 
-### Build Process
-The source code must be copied to `DOSBox-X/drived/` before building, as this is the directory mounted as `D:\` in DOSBox-X.
+### Manual Build Process
+If you need to build manually inside DOSBox-X:
 
-1. **Copy files to test directory**:
-   ```bash
-   cp SNAKE.ASM DOSBox-X/drived/
-   cp BUILD.BAT DOSBox-X/drived/
-   ```
-
-2. **Build in DOSBox-X** (from D: drive):
+1. **Build** (from D: drive):
    ```
    BUILD.BAT
    ```
    This runs TASM to assemble `SNAKE.ASM` → `SNAKE.OBJ`, then TLINK to link → `SNAKE.EXE`
 
-3. **Run the game**:
+2. **Run the game**:
    ```
    SNAKE.EXE
    ```
 
-4. **Debug** (optional): Turbo Debugger is available at `Z:\BOR\TD.EXE`
-
-**IMPORTANT**: Always copy SNAKE.ASM to `DOSBox-X/drived/` after making changes so they can be tested in DOSBox-X.
+3. **Debug** (optional): Turbo Debugger is available at `Z:\BOR\TD.EXE`
 
 ## Code Architecture
 
@@ -67,8 +73,7 @@ The source code must be copied to `DOSBox-X/drived/` before building, as this is
 - Prevents 180-degree turns (can't reverse into yourself)
 
 ### Rendering Strategy
-- **Efficient updates**: Only new head drawn each frame, old tail erased
-- **Initial draw**: `DrawAllSnake` draws entire snake at game start
+- **Full redraw**: Entire snake redrawn each frame to prevent visual gaps at corners
 - **2-char erasure**: Both characters of tail must be erased when moving
 - Game border drawn once at initialization
 
@@ -90,7 +95,7 @@ Example: "GAME OVER! Score: 00000" = 24 chars → column 28
 |-----------|---------|
 | `InitGame` | Resets game state, positions snake at center, spawns initial food |
 | `UpdateGame` | Main logic: moves snake, checks collisions, handles food eating |
-| `RenderGame` | Draws new head position and redraws food/score |
+| `RenderGame` | Draws entire snake (fixes corner gaps), food, and score |
 | `DrawAllSnake` | Initial full snake draw (used at game start) |
 | `ProcessInput` | Non-blocking keyboard check, buffers direction changes |
 | `SpawnFood` | Places food at pseudo-random grid-aligned position |

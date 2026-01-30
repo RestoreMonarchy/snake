@@ -916,14 +916,23 @@ DrawFood ENDP
 RenderGame PROC
     PUSH AX
     PUSH BX
+    PUSH CX
     PUSH DX
     PUSH SI
+    PUSH DI
 
-    ; Only draw the new head (tail is erased in UpdateGame)
-    ; Draw as 2 characters wide
-    MOV SI, [snakeHead]
-    MOV DL, [snakeX + SI]
-    MOV DH, [snakeY + SI]
+    ; Draw entire snake to fix gaps at corners
+    ; Iterate from tail to head
+    MOV DI, [snakeTail]
+    MOV CX, [snakeLength]
+
+RenderSnakeLoop:
+    CMP CX, 0
+    JE RenderSnakeDone
+
+    ; Draw snake segment (2 characters wide)
+    MOV DL, [snakeX + DI]
+    MOV DH, [snakeY + DI]
     MOV AL, CHAR_SNAKE
     MOV BL, COLOR_SNAKE
     CALL DrawChar
@@ -932,14 +941,26 @@ RenderGame PROC
     INC DL
     CALL DrawChar
 
+    ; Move to next segment (circular buffer)
+    INC DI
+    CMP DI, MAX_SNAKE_LENGTH
+    JL RenderNoWrap
+    XOR DI, DI
+RenderNoWrap:
+    DEC CX
+    JMP RenderSnakeLoop
+
+RenderSnakeDone:
     ; Redraw food (in case snake moved over it)
     CALL DrawFood
 
     ; Draw score
     CALL DrawScore
 
+    POP DI
     POP SI
     POP DX
+    POP CX
     POP BX
     POP AX
     RET
