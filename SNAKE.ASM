@@ -26,6 +26,9 @@
     COLOR_FOOD      EQU 0Ch     ; Light red
     COLOR_SCORE     EQU 0Fh     ; White
     COLOR_BLACK     EQU 00h     ; Black
+    COLOR_YELLOW    EQU 0Eh     ; Yellow (for death animation)
+    COLOR_RED       EQU 0Ch     ; Light red (for death animation)
+    COLOR_DARKRED   EQU 04h     ; Dark red (for death animation)
 
     ; Characters
     CHAR_BORDER_H   EQU 205     ; ═ horizontal border
@@ -175,6 +178,9 @@ PausedLoop:
     JMP GameLoop
 
 ExitGame:
+    ; Play death animation before clearing screen
+    CALL DeathAnimation
+
     ; Clear screen
     CALL ClearScreen
 
@@ -1269,5 +1275,163 @@ SaveDone:
     POP AX
     RET
 SaveHighScore ENDP
+
+; ============================================================================
+; DeathAnimation - Animate snake death with color fade
+; Colors: green -> yellow -> red -> dark red -> disappear
+; ============================================================================
+DeathAnimation PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    PUSH SI
+    PUSH DI
+
+    ; Phase 1: Green to Yellow
+    MOV BL, COLOR_YELLOW
+    CALL DrawSnakeWithColor
+    CALL AnimationDelay
+
+    ; Phase 2: Yellow to Red
+    MOV BL, COLOR_RED
+    CALL DrawSnakeWithColor
+    CALL AnimationDelay
+
+    ; Phase 3: Red to Dark Red
+    MOV BL, COLOR_DARKRED
+    CALL DrawSnakeWithColor
+    CALL AnimationDelay
+
+    ; Phase 4: Disappear (erase snake)
+    CALL EraseSnake
+    CALL AnimationDelay
+
+    POP DI
+    POP SI
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+DeathAnimation ENDP
+
+; ============================================================================
+; DrawSnakeWithColor - Draw entire snake with specified color
+; Input: BL = color attribute
+; ============================================================================
+DrawSnakeWithColor PROC
+    PUSH AX
+    PUSH CX
+    PUSH DX
+    PUSH DI
+
+    MOV DI, [snakeTail]
+    MOV CX, [snakeLength]
+
+DrawColorLoop:
+    CMP CX, 0
+    JE DrawColorDone
+
+    ; Draw snake segment (2 characters wide)
+    MOV DL, [snakeX + DI]
+    MOV DH, [snakeY + DI]
+    MOV AL, CHAR_SNAKE
+    CALL DrawChar
+
+    ; Draw second character for width
+    INC DL
+    CALL DrawChar
+
+    ; Move to next segment (circular buffer)
+    INC DI
+    CMP DI, MAX_SNAKE_LENGTH
+    JL DrawColorNoWrap
+    XOR DI, DI
+DrawColorNoWrap:
+    DEC CX
+    JMP DrawColorLoop
+
+DrawColorDone:
+    POP DI
+    POP DX
+    POP CX
+    POP AX
+    RET
+DrawSnakeWithColor ENDP
+
+; ============================================================================
+; EraseSnake - Erase entire snake from screen
+; ============================================================================
+EraseSnake PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    PUSH DI
+
+    MOV DI, [snakeTail]
+    MOV CX, [snakeLength]
+
+EraseLoop:
+    CMP CX, 0
+    JE EraseDone
+
+    ; Erase snake segment (2 characters wide)
+    MOV DL, [snakeX + DI]
+    MOV DH, [snakeY + DI]
+    MOV AL, CHAR_SPACE
+    MOV BL, COLOR_BLACK
+    CALL DrawChar
+
+    ; Erase second character
+    INC DL
+    CALL DrawChar
+
+    ; Move to next segment (circular buffer)
+    INC DI
+    CMP DI, MAX_SNAKE_LENGTH
+    JL EraseNoWrap
+    XOR DI, DI
+EraseNoWrap:
+    DEC CX
+    JMP EraseLoop
+
+EraseDone:
+    POP DI
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+EraseSnake ENDP
+
+; ============================================================================
+; AnimationDelay - Delay for animation frames (shorter than game delay)
+; ============================================================================
+AnimationDelay PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+
+    ; Wait for 4 ticks (~220ms per animation frame)
+    MOV AH, 00h
+    INT 1Ah
+    MOV BX, DX
+    ADD BX, 4
+
+AnimDelayLoop:
+    MOV AH, 00h
+    INT 1Ah
+    CMP DX, BX
+    JL AnimDelayLoop
+
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+AnimationDelay ENDP
 
 END START
