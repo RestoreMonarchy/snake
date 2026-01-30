@@ -551,11 +551,12 @@ InitGame ENDP
 SpawnFood PROC
     PUSH AX
     PUSH BX
+    PUSH CX
     PUSH DX
+    PUSH SI
+    PUSH DI
 
-    ; For now, use a simple pseudo-random position
-    ; In a real implementation, we'd check for collisions with snake
-
+TrySpawnAgain:
     ; Get a pseudo-random number using BIOS timer
     MOV AH, 00h
     INT 1Ah                         ; Get system time, CX:DX = tick count
@@ -583,7 +584,37 @@ SpawnFood PROC
     ADD DL, 2
     MOV [foodY], DL
 
+    ; Check if food collides with snake body
+    MOV DI, [snakeTail]
+    MOV CX, [snakeLength]
+
+CheckFoodCollision:
+    CMP CX, 0
+    JE FoodPositionOK               ; No collision, position is good
+
+    ; Compare food position with this snake segment
+    MOV AL, [foodX]
+    CMP AL, [snakeX + DI]
+    JNE FoodNotHere
+    MOV AL, [foodY]
+    CMP AL, [snakeY + DI]
+    JE TrySpawnAgain                ; Collision! Try new position
+
+FoodNotHere:
+    ; Move to next segment (circular buffer)
+    INC DI
+    CMP DI, MAX_SNAKE_LENGTH
+    JL FoodNoWrap
+    XOR DI, DI
+FoodNoWrap:
+    DEC CX
+    JMP CheckFoodCollision
+
+FoodPositionOK:
+    POP DI
+    POP SI
     POP DX
+    POP CX
     POP BX
     POP AX
     RET
